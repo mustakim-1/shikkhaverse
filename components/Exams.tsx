@@ -1,62 +1,55 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, XCircle, AlertCircle, BarChart2, Award, ChevronRight, Brain, Database } from 'lucide-react';
 import { sendMessageToAI } from '../services/geminiService';
+import { dataService } from '../services/dataService';
+import { Exam } from '../types';
 
 export const Exams: React.FC = () => {
-  const [view, setView] = useState<'LIST' | 'QUIZ' | 'RESULT'>('LIST');
+  const [view, setView] = useState<'LIST' | 'QUIZ' | 'RESULT' | 'RESULTS'>('LIST');
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
+  const [flatQuestions, setFlatQuestions] = useState<{ id: string; type: 'MCQ' | 'SQ' | 'CQ'; text: string; options?: string[]; marks: number }[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<number[]>([]);
+  const [answers, setAnswers] = useState<Record<string, number | string>>({});
+  const [publishedResults, setPublishedResults] = useState<{ examId: string; id: string; totalMarks: number; obtainedMarks: number; mcqCorrect: number; mcqTotal: number }[]>([]);
   
   // AI Feedback State
   const [aiFeedback, setAiFeedback] = useState<string | null>(null);
   const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
 
-  // Mock Quiz Data
-  const quiz = {
-    title: "Physics: Dynamics & Force",
-    duration: "20 mins",
-    questions: [
-      {
-        q: "If the net force on an object is zero, what can be said about its acceleration?",
-        options: ["It is constant but non-zero", "It is zero", "It increases", "It decreases"],
-        correct: 1,
-        topic: "Newton's First Law (Inertia)"
-      },
-      {
-        q: "Which of Newton's laws explains recoil of a gun?",
-        options: ["First Law", "Second Law", "Third Law", "Law of Gravitation"],
-        correct: 2,
-        topic: "Newton's Third Law (Action-Reaction)"
-      },
-      {
-        q: "The unit of Impulse is equivalent to which of the following?",
-        options: ["Force", "Momentum", "Change in Momentum", "Energy"],
-        correct: 2,
-        topic: "Impulse & Momentum"
+  useEffect(() => {
+    setExams(dataService.getExams());
+  }, []);
+  
+  useEffect(() => {
+    if (view === 'RESULTS') {
+      const user = dataService.getCurrentUser();
+      if (user?.id) {
+        const results = dataService.getPublishedResultsForStudent(user.id);
+        setPublishedResults(results);
+      } else {
+        setPublishedResults([]);
       }
-    ]
-  };
+    }
+  }, [view]);
 
   const handleOptionSelect = (idx: number) => {
-    const newAnswers = [...answers];
-    newAnswers[currentQuestion] = idx;
-    setAnswers(newAnswers);
+    const q = flatQuestions[currentQuestion];
+    setAnswers(prev => ({ ...prev, [q.id]: idx }));
   };
 
   const nextQuestion = () => {
-    if (currentQuestion < quiz.questions.length - 1) {
+    if (currentQuestion < flatQuestions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
       setView('RESULT');
     }
   };
 
-  const calculateScore = () => {
-    let score = 0;
-    answers.forEach((ans, idx) => {
-      if (ans === quiz.questions[idx].correct) score++;
-    });
-    return score;
+  const submitExam = () => {
+    if (!selectedExam) return;
+    const summary = dataService.submitExam({ examId: selectedExam.id, answers });
+    return summary;
   };
 
   // Trigger AI Analysis when reaching Result view
@@ -64,20 +57,21 @@ export const Exams: React.FC = () => {
     if (view === 'RESULT' && !aiFeedback && !isFeedbackLoading) {
         const fetchAIFeedback = async () => {
             setIsFeedbackLoading(true);
-            const score = calculateScore();
+            const summary = submitExam();
+            const score = summary?.obtainedMarks || 0;
             
             // Construct a prompt for the AI Coach
             const prompt = `
             ACT AS: The "Ethical Smart Learning Platform Brain" (Performance Coach).
             TASK: Analyze the student's quiz performance.
             CONTEXT:
-            - Quiz Title: ${quiz.title}
-            - Score: ${score}/${quiz.questions.length}
+            - Quiz Title: ${selectedExam?.title}
+            - Score: ${score}/${selectedExam?.totalMarks}
             
             QUESTION BREAKDOWN:
-            ${quiz.questions.map((q, i) => `
-            ${i+1}. Topic: ${q.topic}
-               Result: ${answers[i] === q.correct ? "CORRECT" : "INCORRECT"}
+            ${flatQuestions.map((q, i) => `
+            ${i+1}. Type: ${q.type}
+               Result: ${q.type === 'MCQ' ? ((answers[q.id] === undefined ? 'SKIPPED' : ((answers[q.id] as number) >= 0 ? 'ANSWERED' : 'SKIPPED'))) : ((answers[q.id] ? 'ANSWERED' : 'SKIPPED'))}
             `).join('')}
 
             OUTPUT INSTRUCTION:
@@ -104,6 +98,7 @@ export const Exams: React.FC = () => {
   }, [view]);
 
   if (view === 'QUIZ') {
+    const q = flatQuestions[currentQuestion];
     return (
       <div className="h-full flex flex-col items-center justify-center max-w-3xl mx-auto animate-fade-in">
         <div className="w-full glass-panel p-8 rounded-2xl relative overflow-hidden">
@@ -111,45 +106,58 @@ export const Exams: React.FC = () => {
           <div className="absolute top-0 left-0 h-1 bg-slate-800 w-full">
             <div 
               className="h-full bg-blue-500 transition-all duration-300" 
-              style={{ width: `${((currentQuestion + 1) / quiz.questions.length) * 100}%` }}
+              style={{ width: `${((currentQuestion + 1) / flatQuestions.length) * 100}%` }}
             ></div>
           </div>
 
           <div className="flex justify-between items-center mb-8 mt-2">
-            <span className="text-slate-400 text-sm font-mono">Question {currentQuestion + 1}/{quiz.questions.length}</span>
+            <span className="text-slate-400 text-sm font-mono">Question {currentQuestion + 1}/{flatQuestions.length}</span>
             <div className="flex items-center gap-2 text-yellow-400 font-mono bg-yellow-400/10 px-3 py-1 rounded-lg">
               <Clock className="w-4 h-4" /> 14:20
             </div>
           </div>
 
           <h3 className="text-2xl font-bold mb-8 leading-relaxed">
-            {quiz.questions[currentQuestion].q}
+            {q.text}
           </h3>
 
-          <div className="space-y-4 mb-8">
-            {quiz.questions[currentQuestion].options.map((opt, idx) => (
-              <div 
-                key={idx}
-                onClick={() => handleOptionSelect(idx)}
-                className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                  answers[currentQuestion] === idx 
-                    ? 'bg-blue-600/20 border-blue-500 text-blue-100' 
-                    : 'bg-slate-800/50 border-slate-700 hover:bg-slate-800 hover:border-slate-500'
-                }`}
-              >
-                <span>{opt}</span>
-                {answers[currentQuestion] === idx && <CheckCircle className="w-5 h-5 text-blue-400" />}
-              </div>
-            ))}
-          </div>
+          {q.type === 'MCQ' && (
+            <div className="space-y-4 mb-8">
+              {(q.options || []).map((opt, idx) => (
+                <div 
+                  key={idx}
+                  onClick={() => handleOptionSelect(idx)}
+                  className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                    answers[q.id] === idx 
+                      ? 'bg-blue-600/20 border-blue-500 text-blue-100' 
+                      : 'bg-slate-800/50 border-slate-700 hover:bg-slate-800 hover:border-slate-500'
+                  }`}
+                >
+                  <span>{opt}</span>
+                  {answers[q.id] === idx && <CheckCircle className="w-5 h-5 text-blue-400" />}
+                </div>
+              ))}
+            </div>
+          )}
+          {q.type !== 'MCQ' && (
+            <div className="space-y-4 mb-8">
+              <textarea
+                rows={6}
+                className="w-full bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 resize-none"
+                placeholder={q.type === 'SQ' ? 'Write short answer here...' : 'Write creative/descriptive answer here...'}
+                value={(answers[q.id] as string) || ''}
+                onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+              />
+            </div>
+          )}
 
           <div className="flex justify-end">
             <button 
               onClick={nextQuestion}
-              disabled={answers[currentQuestion] === undefined}
+              disabled={q.type === 'MCQ' ? answers[q.id] === undefined : false}
               className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {currentQuestion === quiz.questions.length - 1 ? 'Finish Exam' : 'Next Question'}
+              {currentQuestion === flatQuestions.length - 1 ? 'Finish Exam' : 'Next Question'}
             </button>
           </div>
         </div>
@@ -158,8 +166,9 @@ export const Exams: React.FC = () => {
   }
 
   if (view === 'RESULT') {
-    const score = calculateScore();
-    const percentage = (score / quiz.questions.length) * 100;
+    const summary = submitExam();
+    const score = summary?.obtainedMarks || 0;
+    const percentage = selectedExam ? (score / selectedExam.totalMarks) * 100 : 0;
     
     return (
       <div className="h-full flex flex-col items-center justify-center animate-fade-in">
@@ -173,19 +182,19 @@ export const Exams: React.FC = () => {
             </div>
 
             <h2 className="text-3xl font-bold mb-2">Exam Complete!</h2>
-            <p className="text-slate-400 mb-8">You scored {score} out of {quiz.questions.length}</p>
+            <p className="text-slate-400 mb-8">You scored {score} out of {selectedExam?.totalMarks}</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 text-left">
                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                  <h4 className="text-sm font-bold text-slate-300 mb-2">Strong Area</h4>
+                  <h4 className="text-sm font-bold text-slate-300 mb-2">MCQ Result</h4>
                   <div className="text-green-400 flex items-center gap-2">
-                     <CheckCircle className="w-4 h-4" /> {answers[0] === quiz.questions[0].correct ? quiz.questions[0].topic : quiz.questions[2].topic}
+                     <CheckCircle className="w-4 h-4" /> {summary?.mcqCorrect}/{summary?.mcqTotal} correct
                   </div>
                </div>
                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                  <h4 className="text-sm font-bold text-slate-300 mb-2">Needs Improvement</h4>
-                  <div className="text-red-400 flex items-center gap-2">
-                     <AlertCircle className="w-4 h-4" /> {answers.find((a, i) => a !== quiz.questions[i].correct) ? quiz.questions[answers.findIndex((a, i) => a !== quiz.questions[i].correct)].topic : "None"}
+                  <h4 className="text-sm font-bold text-slate-300 mb-2">Descriptive Sections</h4>
+                  <div className="text-slate-400 text-sm">
+                     SQ and CQ saved for instructor evaluation.
                   </div>
                </div>
             </div>
@@ -220,8 +229,10 @@ export const Exams: React.FC = () => {
             <button 
               onClick={() => {
                 setView('LIST');
+                setSelectedExam(null);
+                setFlatQuestions([]);
                 setCurrentQuestion(0);
-                setAnswers([]);
+                setAnswers({});
                 setAiFeedback(null);
               }}
               className="px-8 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl transition-colors font-bold"
@@ -244,49 +255,86 @@ export const Exams: React.FC = () => {
          <div className="flex gap-2">
             <button className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-bold">Upcoming</button>
             <button className="px-4 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-400 transition-colors">Past Papers</button>
-            <button className="px-4 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-400 transition-colors">Results</button>
+            <button onClick={() => setView('RESULTS')} className="px-4 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-400 transition-colors">Results</button>
          </div>
        </div>
 
-       {/* Featured Exam */}
-       <div className="glass-panel p-8 rounded-2xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 group cursor-pointer hover:border-blue-500/50 transition-colors" onClick={() => setView('QUIZ')}>
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-transparent"></div>
-          <div className="relative z-10">
-             <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded mb-2 inline-block">CLOSING SOON</span>
-             <h3 className="text-2xl font-bold mb-1">Weekly Physics Challenge</h3>
-             <p className="text-slate-300">Topic: Dynamics & Force • 20 Questions • 500 XP</p>
-          </div>
-          <div className="relative z-10 flex flex-col items-center">
-             <div className="text-3xl font-bold text-blue-400">14:20</div>
-             <div className="text-xs text-slate-400 uppercase tracking-widest">Time Remaining</div>
-          </div>
-          <button className="relative z-10 px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold shadow-lg shadow-blue-500/20">
-             Start Exam
-          </button>
-       </div>
+       {view === 'RESULTS' && (
+         <div className="glass-panel p-6 rounded-2xl">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Award className="w-5 h-5 text-green-400" /> Published Results
+            </h3>
+            {publishedResults.length === 0 ? (
+              <div className="text-slate-400 text-sm">No published results yet.</div>
+            ) : (
+              <div className="space-y-3">
+                {publishedResults.map((res) => {
+                  const ex = exams.find(e => e.id === res.examId);
+                  const pct = res.totalMarks ? Math.round((res.obtainedMarks / res.totalMarks) * 100) : 0;
+                  return (
+                    <div key={res.id} className="p-4 bg-slate-800/50 rounded-xl border border-slate-700 flex items-center justify-between">
+                      <div>
+                        <h4 className="font-bold text-slate-200">{ex?.title || 'Exam'}</h4>
+                        <p className="text-xs text-slate-500">{ex?.subject} • {res.mcqCorrect}/{res.mcqTotal} MCQ correct</p>
+                      </div>
+                      <div className={`px-3 py-1 rounded-lg text-sm font-bold ${pct >= 80 ? 'bg-emerald-500/20 text-emerald-300' : pct >= 50 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300'}`}>
+                        {res.obtainedMarks}/{res.totalMarks}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+         </div>
+       )}
 
-       {/* Exam Grid */}
-       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { title: "HSC Model Test: Biology", date: "Tomorrow, 10:00 AM", type: "Model Test" },
-            { title: "Quick Math Quiz: Algebra", date: "Always Available", type: "Practice" },
-            { title: "English Grammar Check", date: "Always Available", type: "Skill Check" },
-          ].map((exam, idx) => (
-             <div key={idx} className="glass-panel p-6 rounded-2xl flex flex-col hover:bg-slate-800/80 transition-colors">
-                <div className="flex justify-between items-start mb-4">
-                   <div className={`p-2 rounded-lg ${idx === 0 ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-700/50 text-slate-400'}`}>
-                      <BarChart2 className="w-6 h-6" />
-                   </div>
-                   <span className="text-xs font-bold text-slate-500 border border-slate-700 px-2 py-1 rounded">{exam.type}</span>
-                </div>
-                <h4 className="font-bold text-lg mb-1">{exam.title}</h4>
-                <p className="text-slate-400 text-sm mb-6">{exam.date}</p>
-                <button className="mt-auto w-full py-2 border border-slate-700 rounded-lg hover:bg-slate-700 hover:text-white text-slate-300 transition-colors flex items-center justify-center gap-2">
-                   View Details <ChevronRight className="w-4 h-4" />
-                </button>
+       {exams.length === 0 ? (
+         <div className="glass-panel p-8 rounded-2xl text-center">
+           <h3 className="text-xl font-bold mb-2">No exams available</h3>
+           <p className="text-slate-400">Admins can create exams from Admin Dashboard.</p>
+         </div>
+       ) : (
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+           {exams.map((exam) => (
+             <div key={exam.id} className="glass-panel p-6 rounded-2xl flex flex-col hover:bg-slate-800/80 transition-colors">
+               <div className="flex justify-between items-start mb-4">
+                 <div className="p-2 rounded-lg bg-purple-500/20 text-purple-400">
+                   <BarChart2 className="w-6 h-6" />
+                 </div>
+                 <span className="text-xs font-bold text-slate-500 border border-slate-700 px-2 py-1 rounded">{exam.subject}</span>
+               </div>
+               <h4 className="font-bold text-lg mb-1">{exam.title}</h4>
+               <p className="text-slate-400 text-sm mb-6">{exam.durationMinutes} mins • {exam.totalMarks} marks</p>
+               <button
+                 onClick={() => {
+                   setSelectedExam(exam);
+                   const fq: { id: string; type: 'MCQ' | 'SQ' | 'CQ'; text: string; options?: string[]; marks: number }[] = [];
+                   exam.sections.forEach(sec => {
+                     if (sec.type === 'MCQ' && sec.mcq) {
+                       sec.mcq.forEach(q => fq.push({ id: q.id, type: 'MCQ', text: q.text, options: q.options, marks: q.marks }));
+                     }
+                     if (sec.type === 'SQ' && sec.sq) {
+                       sec.sq.forEach(q => fq.push({ id: q.id, type: 'SQ', text: q.text, marks: q.marks }));
+                     }
+                     if (sec.type === 'CQ' && sec.cq) {
+                       sec.cq.forEach(q => fq.push({ id: q.id, type: 'CQ', text: q.text, marks: q.marks }));
+                     }
+                   });
+                   setFlatQuestions(fq);
+                   setAnswers({});
+                   setCurrentQuestion(0);
+                   setView('QUIZ');
+                 }}
+                 className="mt-auto w-full py-2 border border-slate-700 rounded-lg hover:bg-slate-700 hover:text-white text-slate-300 transition-colors flex items-center justify-center gap-2"
+               >
+                 Start Exam <ChevronRight className="w-4 h-4" />
+               </button>
              </div>
-          ))}
-       </div>
+           ))}
+         </div>
+       )}
+
+       
 
        {/* Special Exam Prep Section */}
        <div className="mt-8">

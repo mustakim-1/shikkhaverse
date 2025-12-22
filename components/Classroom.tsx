@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, MessageCircle, FileText, Download, PlayCircle, Video, X, Upload, CheckCircle, File, Image as ImageIcon, Mic, Hand, BarChart2 } from 'lucide-react';
 import { dataService } from '../services/dataService';
-import { Assignment } from '../types';
+import { Assignment, PublishedClass } from '../types';
 
 export const Classroom: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'LIVE' | 'HOMEWORK' | 'TEACHER'>('LIVE');
@@ -10,9 +10,12 @@ export const Classroom: React.FC = () => {
   const [submissionStatus, setSubmissionStatus] = useState<'IDLE' | 'SUBMITTING' | 'SUBMITTED'>('IDLE');
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null);
+  const [classes, setClasses] = useState<PublishedClass[]>([]);
+  const [selectedClass, setSelectedClass] = useState<PublishedClass | null>(null);
 
   useEffect(() => {
     setAssignments(dataService.getAssignments());
+    setClasses(dataService.getClasses());
   }, []);
 
   const [isMicActive, setIsMicActive] = useState(false);
@@ -77,7 +80,26 @@ export const Classroom: React.FC = () => {
         <div className="flex flex-col lg:flex-row gap-6 h-full">
             <div className="flex-1 flex flex-col gap-4">
                 <div className="bg-black rounded-2xl overflow-hidden relative aspect-video group shadow-2xl border border-slate-800">
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
+                    {selectedClass?.videoUrl ? (
+                      selectedClass.videoUrl.includes('youtube.com') || selectedClass.videoUrl.includes('youtu.be') ? (
+                        <iframe
+                          className="w-full h-full"
+                          src={
+                            selectedClass.videoUrl.includes('watch?v=')
+                              ? `https://www.youtube.com/embed/${selectedClass.videoUrl.split('watch?v=')[1].split('&')[0]}`
+                              : selectedClass.videoUrl.includes('youtu.be/')
+                              ? `https://www.youtube.com/embed/${selectedClass.videoUrl.split('youtu.be/')[1]}`
+                              : selectedClass.videoUrl
+                          }
+                          title={selectedClass.title}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <video className="w-full h-full" src={selectedClass.videoUrl} controls />
+                      )
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
                         <div className="text-center p-8">
                             <img src="https://picsum.photos/800/450" alt="Class Board" className="absolute inset-0 w-full h-full object-cover opacity-50" />
                             <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent"></div>
@@ -87,7 +109,8 @@ export const Classroom: React.FC = () => {
                                 <p className="text-slate-300">Live • 1,420 Students Watching</p>
                             </div>
                         </div>
-                    </div>
+                      </div>
+                    )}
                     <div className="absolute top-4 left-4 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse flex items-center gap-1">
                         <span className="w-2 h-2 bg-white rounded-full"></span> LIVE
                     </div>
@@ -130,6 +153,46 @@ export const Classroom: React.FC = () => {
                             <FileText className="w-4 h-4" /> Assignment
                         </button>
                     </div>
+                </div>
+                <div className="glass-panel p-6 rounded-2xl">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xl font-bold">Published Classes</h3>
+                        <span className="text-xs text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">{classes.length}</span>
+                    </div>
+                    {classes.length === 0 ? (
+                        <div className="text-center text-slate-500 py-10">
+                            <Video className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                            <p>No published classes yet.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {classes.map(cls => (
+                            <button
+                              key={cls.id}
+                              onClick={() => setSelectedClass(cls)}
+                              className={`p-4 rounded-xl border transition-colors text-left ${
+                                selectedClass?.id === cls.id ? 'bg-blue-600/10 border-blue-500/30' : 'bg-slate-800/50 border-slate-700 hover:border-blue-500/30 hover:bg-slate-800/70'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 bg-slate-700 rounded-lg">
+                                    <PlayCircle className="w-5 h-5 text-blue-400" />
+                                  </div>
+                                  <div>
+                                    <h4 className="font-bold leading-tight">{cls.title}</h4>
+                                    <p className="text-xs text-slate-400">{cls.instructor}</p>
+                                  </div>
+                                </div>
+                                <span className="text-[10px] uppercase font-bold text-slate-500 border border-slate-700 px-2 py-0.5 rounded">{cls.date} • {cls.time}</span>
+                              </div>
+                              {cls.videoUrl && (
+                                <p className="mt-2 text-xs text-slate-500">Video available</p>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                    )}
                 </div>
             </div>
             

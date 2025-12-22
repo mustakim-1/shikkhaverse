@@ -1,9 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, Send, Sparkles, AlertCircle } from 'lucide-react';
-import { ChatMessage } from '../types';
+import { Bot, Send, Sparkles, AlertCircle, Image as ImageIcon, X } from 'lucide-react';
+import { ChatMessage, User } from '../types';
 import { sendMessageToAI } from '../services/geminiService';
 
-const AIChat: React.FC = () => {
+interface AIChatProps {
+  currentUser?: User;
+}
+
+const DAILY_LIMIT = 20;
+
+const AIChat: React.FC<AIChatProps> = ({ currentUser }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -14,7 +20,10 @@ const AIChat: React.FC = () => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [dailyCount, setDailyCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -24,8 +33,45 @@ const AIChat: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    // Load daily usage from localStorage
+    const today = new Date().toDateString();
+    const stored = localStorage.getItem('ai_usage');
+    if (stored) {
+        const { date, count } = JSON.parse(stored);
+        if (date === today) {
+            setDailyCount(count);
+        } else {
+            // Reset if new day
+            setDailyCount(0);
+            localStorage.setItem('ai_usage', JSON.stringify({ date: today, count: 0 }));
+        }
+    }
+  }, []);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setSelectedImage(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    }
+  };
+
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && !selectedImage) || isLoading) return;
+
+    if (dailyCount >= DAILY_LIMIT) {
+        setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'model',
+            text: "⚠️ Daily limit reached. Take a break and review what you've learned today! Come back tomorrow for more guidance.",
+            timestamp: new Date()
+        }]);
+        return;
+    }
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -36,6 +82,8 @@ const AIChat: React.FC = () => {
 
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
+    const imageToSend = selectedImage;
+    setSelectedImage(null); // Clear image after sending
     setIsLoading(true);
 
     try {
@@ -45,8 +93,18 @@ const AIChat: React.FC = () => {
       const historyForAI = messages
         .filter(m => m.id !== 'welcome')
         .map(m => ({ role: m.role, text: m.text }));
-      
-      const responseText = await sendMessageToAI(userMsg.text, historyForAI);
+
+      // Construct context from currentUser
+      let context = "";
+      if (currentUser) {
+        context = `Student Name: ${currentUser.name}, Level: ${currentUser.level}, Role: ${currentUser.role}. `;
+        if (currentUser.academicRecord) {
+            const weakAreas = currentUser.academicRecord.weakAreas?.map(w => w.topic).join(', ');
+            if (weakAreas) context += `Weak Areas: ${weakAreas}. `;
+        }
+      }
+
+      const responseText = await sendMessageToAI(userMsg.text, historyForAI, imageToSend || undefined, context);
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'model',
@@ -54,6 +112,14 @@ const AIChat: React.FC = () => {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, aiMsg]);
+
+      // Update daily count only after successful response
+      const newCount = dailyCount + 1;
+      setDailyCount(newCount);
+      localStorage.setItem('ai_usage', JSON.stringify({
+        date: new Date().toDateString(),
+        count: newCount
+      }));
     } catch (error) {
       console.error(error);
       // Fallback handled in service, but just in case
@@ -80,9 +146,14 @@ const AIChat: React.FC = () => {
             </p>
           </div>
         </div>
-        <div className="px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full flex items-center gap-2">
-            <AlertCircle size={14} className="text-yellow-500" />
-            <span className="text-xs text-yellow-500 font-medium">Ethical Mode Active</span>
+        <div className="flex items-center gap-3">
+            <div className="text-xs text-slate-400">
+                Limit: <span className={`${dailyCount >= DAILY_LIMIT ? 'text-red-500' : 'text-emerald-500'}`}>{dailyCount}/{DAILY_LIMIT}</span>
+            </div>
+            <div className="px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full flex items-center gap-2">
+                <AlertCircle size={14} className="text-yellow-500" />
+                <span className="text-xs text-yellow-500 font-medium">Ethical Mode</span>
+            </div>
         </div>
       </div>
 
@@ -126,18 +197,44 @@ const AIChat: React.FC = () => {
 
       {/* Input */}
       <div className="p-4 bg-dark/50 backdrop-blur-md border-t border-white/10">
+        {selectedImage && (
+            <div className="mb-2 relative inline-block">
+                <img src={selectedImage} alt="Preview" className="h-16 rounded-lg border border-white/20" />
+                <button 
+                    onClick={() => setSelectedImage(null)}
+                    className="absolute -top-2 -right-2 bg-red-500 rounded-full p-0.5 text-white hover:bg-red-600"
+                >
+                    <X size={12} />
+                </button>
+            </div>
+        )}
         <div className="relative flex items-center gap-2">
+          <input 
+            type="file" 
+            accept="image/*" 
+            className="hidden" 
+            ref={fileInputRef}
+            onChange={handleImageUpload}
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+            title="Upload Image"
+          >
+            <ImageIcon size={20} />
+          </button>
+          
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask for guidance on a concept..."
+            placeholder="Ask for guidance or upload a math problem..."
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all pr-12"
           />
           <button
             onClick={handleSend}
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || (!input.trim() && !selectedImage)}
             className="absolute right-2 p-2 bg-primary hover:bg-primary/90 rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send size={20} />

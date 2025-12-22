@@ -35,6 +35,8 @@ import {
   Cell
 } from 'recharts';
 
+import { dataService } from '../services/dataService';
+import { ExamSectionType } from '../types';
 // Mock Data
 const revenueData = [
   { name: 'Jan', amount: 4000 },
@@ -63,7 +65,7 @@ const recentLogs = [
 
 export const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'USERS' | 'CONTENT'>('OVERVIEW');
-  const [activeModal, setActiveModal] = useState<'PUBLISH' | 'EXAM' | 'ALERT' | 'VERIFY' | null>(null);
+  const [activeModal, setActiveModal] = useState<'PUBLISH' | 'EXAM' | 'ALERT' | 'VERIFY' | 'RESULTS' | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
   // Verification List State
@@ -87,6 +89,23 @@ export const AdminDashboard: React.FC = () => {
           setTimeout(() => setActiveModal(null), 500);
       }
   };
+
+  const [classForm, setClassForm] = useState({ title: '', instructor: '', date: '', time: '', videoUrl: '' });
+  const [examForm, setExamForm] = useState({ title: '', subject: 'Physics', durationMinutes: 30, totalMarks: 50 });
+  const [examSectionType, setExamSectionType] = useState<ExamSectionType>('MCQ');
+  const [mcqList, setMcqList] = useState<{ text: string; options: string[]; correctIndex: number; marks: number }[]>([]);
+  const [sqList, setSqList] = useState<{ text: string; marks: number }[]>([]);
+  const [cqList, setCqList] = useState<{ text: string; marks: number }[]>([]);
+  const resetExamBuilder = () => {
+    setExamForm({ title: '', subject: 'Physics', durationMinutes: 30, totalMarks: 50 });
+    setExamSectionType('MCQ');
+    setMcqList([]);
+    setSqList([]);
+    setCqList([]);
+  };
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertSeverity, setAlertSeverity] = useState<'INFO' | 'WARNING' | 'CRITICAL'>('WARNING');
+  const [publishExamId, setPublishExamId] = useState<string>('');
 
   return (
     <div className="space-y-6 animate-fade-in pb-10 relative">
@@ -120,7 +139,9 @@ export const AdminDashboard: React.FC = () => {
                                    <input 
                                      type="text" 
                                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
-                                     placeholder="e.g. HSC Physics: Chapter 5" 
+                                     placeholder="e.g. HSC Physics: Chapter 5"
+                                     value={classForm.title}
+                                     onChange={(e) => setClassForm({ ...classForm, title: e.target.value })}
                                    />
                                </div>
                                <div>
@@ -128,21 +149,54 @@ export const AdminDashboard: React.FC = () => {
                                    <input 
                                      type="text" 
                                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
-                                     placeholder="e.g. Dr. Ahmed" 
+                                     placeholder="e.g. Dr. Ahmed"
+                                     value={classForm.instructor}
+                                     onChange={(e) => setClassForm({ ...classForm, instructor: e.target.value })}
                                    />
                                </div>
                                <div className="grid grid-cols-2 gap-4">
                                    <div>
                                        <label className="block text-sm font-medium text-slate-400 mb-1">Date</label>
-                                       <input type="date" className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
+                                       <input type="date" className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
+                                        value={classForm.date}
+                                        onChange={(e) => setClassForm({ ...classForm, date: e.target.value })}
+                                       />
                                    </div>
                                    <div>
                                        <label className="block text-sm font-medium text-slate-400 mb-1">Time</label>
-                                       <input type="time" className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
+                                       <input type="time" className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
+                                        value={classForm.time}
+                                        onChange={(e) => setClassForm({ ...classForm, time: e.target.value })}
+                                       />
                                    </div>
                                </div>
+                               <div>
+                                   <label className="block text-sm font-medium text-slate-400 mb-1">Video URL</label>
+                                   <input 
+                                     type="url" 
+                                     className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
+                                     placeholder="https://example.com/video.mp4 or YouTube link"
+                                     value={classForm.videoUrl}
+                                     onChange={(e) => setClassForm({ ...classForm, videoUrl: e.target.value })}
+                                   />
+                               </div>
                                <button 
-                                 onClick={() => handleAction("Class Published Successfully")}
+                                 onClick={() => {
+                                   if (!classForm.title || !classForm.instructor || !classForm.date || !classForm.time) {
+                                     setNotification("Please fill all class fields");
+                                     setTimeout(() => setNotification(null), 2000);
+                                     return;
+                                   }
+                                   dataService.publishClass({
+                                     title: classForm.title,
+                                     instructor: classForm.instructor,
+                                     date: classForm.date,
+                                     time: classForm.time,
+                                     videoUrl: classForm.videoUrl
+                                   });
+                                   setClassForm({ title: '', instructor: '', date: '', time: '', videoUrl: '' });
+                                   handleAction("Class Published Successfully");
+                                 }}
                                  className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-white mt-4 flex items-center justify-center gap-2"
                                >
                                    <Plus className="w-5 h-5" /> Publish Now
@@ -163,12 +217,17 @@ export const AdminDashboard: React.FC = () => {
                                    <input 
                                      type="text" 
                                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
-                                     placeholder="e.g. Weekly Biology Quiz" 
+                                     placeholder="e.g. Weekly Biology Quiz"
+                                     value={examForm.title}
+                                     onChange={(e) => setExamForm({ ...examForm, title: e.target.value })}
                                    />
                                </div>
                                <div>
                                    <label className="block text-sm font-medium text-slate-400 mb-1">Subject / Category</label>
-                                   <select className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500">
+                                   <select className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
+                                     value={examForm.subject}
+                                     onChange={(e) => setExamForm({ ...examForm, subject: e.target.value })}
+                                   >
                                        <option>Physics</option>
                                        <option>Chemistry</option>
                                        <option>Biology</option>
@@ -179,15 +238,119 @@ export const AdminDashboard: React.FC = () => {
                                <div className="grid grid-cols-2 gap-4">
                                    <div>
                                        <label className="block text-sm font-medium text-slate-400 mb-1">Duration (mins)</label>
-                                       <input type="number" defaultValue={30} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500" />
+                                       <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
+                                        value={examForm.durationMinutes}
+                                        onChange={(e) => setExamForm({ ...examForm, durationMinutes: Number(e.target.value) })}
+                                       />
                                    </div>
                                    <div>
                                        <label className="block text-sm font-medium text-slate-400 mb-1">Total Marks</label>
-                                       <input type="number" defaultValue={50} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500" />
+                                       <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
+                                        value={examForm.totalMarks}
+                                        onChange={(e) => setExamForm({ ...examForm, totalMarks: Number(e.target.value) })}
+                                       />
                                    </div>
                                </div>
+                               <div className="p-3 bg-slate-900 rounded-xl border border-slate-700">
+                                 <div className="flex items-center justify-between mb-3">
+                                   <label className="text-sm font-bold text-slate-300">Section Type</label>
+                                   <select className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1 text-sm text-slate-300"
+                                     value={examSectionType}
+                                     onChange={(e) => setExamSectionType(e.target.value as ExamSectionType)}
+                                   >
+                                     <option value="MCQ">MCQ</option>
+                                     <option value="SQ">SQ</option>
+                                     <option value="CQ">CQ</option>
+                                   </select>
+                                 </div>
+                                 {examSectionType === 'MCQ' && (
+                                   <div className="space-y-3">
+                                     {mcqList.map((q, idx) => (
+                                       <div key={idx} className="p-3 bg-slate-800 rounded-xl border border-slate-700">
+                                         <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white mb-2" placeholder="Question" value={q.text} onChange={(e) => {
+                                           const copy = [...mcqList]; copy[idx].text = e.target.value; setMcqList(copy);
+                                         }} />
+                                         <div className="grid grid-cols-2 gap-2">
+                                           {q.options.map((opt, oi) => (
+                                             <div key={oi} className="flex items-center gap-2">
+                                               <input type="radio" name={`mcq-${idx}`} checked={q.correctIndex === oi} onChange={() => {
+                                                 const copy = [...mcqList]; copy[idx].correctIndex = oi; setMcqList(copy);
+                                               }} className="accent-purple-500" />
+                                               <input className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-white" placeholder={`Option ${oi+1}`} value={opt} onChange={(e) => {
+                                                 const copy = [...mcqList]; copy[idx].options[oi] = e.target.value; setMcqList(copy);
+                                               }} />
+                                             </div>
+                                           ))}
+                                         </div>
+                                         <div className="mt-2">
+                                           <input type="number" className="w-24 bg-slate-900 border border-slate-700 rounded-lg p-2 text-white" placeholder="Marks" value={q.marks} onChange={(e) => {
+                                             const copy = [...mcqList]; copy[idx].marks = Number(e.target.value); setMcqList(copy);
+                                           }} />
+                                         </div>
+                                       </div>
+                                     ))}
+                                     <button onClick={() => setMcqList(prev => [...prev, { text: '', options: ['', '', '', ''], correctIndex: 0, marks: 1 }])} className="px-3 py-2 bg-purple-600/20 border border-purple-500/40 rounded-lg text-purple-300 text-xs font-bold">
+                                       + Add MCQ
+                                     </button>
+                                   </div>
+                                 )}
+                                 {examSectionType === 'SQ' && (
+                                   <div className="space-y-3">
+                                     {sqList.map((q, idx) => (
+                                       <div key={idx} className="p-3 bg-slate-800 rounded-xl border border-slate-700">
+                                         <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white mb-2" placeholder="Question" value={q.text} onChange={(e) => {
+                                           const copy = [...sqList]; copy[idx].text = e.target.value; setSqList(copy);
+                                         }} />
+                                         <input type="number" className="w-24 bg-slate-900 border border-slate-700 rounded-lg p-2 text-white" placeholder="Marks" value={q.marks} onChange={(e) => {
+                                           const copy = [...sqList]; copy[idx].marks = Number(e.target.value); setSqList(copy);
+                                         }} />
+                                       </div>
+                                     ))}
+                                     <button onClick={() => setSqList(prev => [...prev, { text: '', marks: 2 }])} className="px-3 py-2 bg-blue-600/20 border border-blue-500/40 rounded-lg text-blue-300 text-xs font-bold">
+                                       + Add SQ
+                                     </button>
+                                   </div>
+                                 )}
+                                 {examSectionType === 'CQ' && (
+                                   <div className="space-y-3">
+                                     {cqList.map((q, idx) => (
+                                       <div key={idx} className="p-3 bg-slate-800 rounded-xl border border-slate-700">
+                                         <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white mb-2" placeholder="Question" value={q.text} onChange={(e) => {
+                                           const copy = [...cqList]; copy[idx].text = e.target.value; setCqList(copy);
+                                         }} />
+                                         <input type="number" className="w-24 bg-slate-900 border border-slate-700 rounded-lg p-2 text-white" placeholder="Marks" value={q.marks} onChange={(e) => {
+                                           const copy = [...cqList]; copy[idx].marks = Number(e.target.value); setCqList(copy);
+                                         }} />
+                                       </div>
+                                     ))}
+                                     <button onClick={() => setCqList(prev => [...prev, { text: '', marks: 10 }])} className="px-3 py-2 bg-emerald-600/20 border border-emerald-500/40 rounded-lg text-emerald-300 text-xs font-bold">
+                                       + Add CQ
+                                     </button>
+                                   </div>
+                                 )}
+                               </div>
                                <button 
-                                 onClick={() => handleAction("Exam Created Successfully")}
+                                 onClick={() => {
+                                   if (!examForm.title) {
+                                     setNotification("Please enter exam title");
+                                     setTimeout(() => setNotification(null), 2000);
+                                     return;
+                                   }
+                                   const sections = [];
+                                   if (mcqList.length) sections.push({ type: 'MCQ', mcq: mcqList.map((q, i) => ({ id: `mcq-${Date.now()}-${i}`, text: q.text, options: q.options, correctIndex: q.correctIndex, marks: q.marks })) });
+                                   if (sqList.length) sections.push({ type: 'SQ', sq: sqList.map((q, i) => ({ id: `sq-${Date.now()}-${i}`, text: q.text, marks: q.marks })) });
+                                   if (cqList.length) sections.push({ type: 'CQ', cq: cqList.map((q, i) => ({ id: `cq-${Date.now()}-${i}`, text: q.text, marks: q.marks })) });
+                                   dataService.createExam({
+                                     title: examForm.title,
+                                     subject: examForm.subject,
+                                     durationMinutes: examForm.durationMinutes,
+                                     totalMarks: examForm.totalMarks,
+                                     createdBy: 'ADMIN',
+                                     sections
+                                   });
+                                   resetExamBuilder();
+                                   handleAction("Exam Created Successfully");
+                                 }}
                                  className="w-full py-3 bg-purple-600 hover:bg-purple-500 rounded-xl font-bold text-white mt-4 flex items-center justify-center gap-2"
                                >
                                    <Plus className="w-5 h-5" /> Create Exam
@@ -212,26 +375,39 @@ export const AdminDashboard: React.FC = () => {
                                    <textarea 
                                      rows={4}
                                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-amber-500 resize-none"
-                                     placeholder="e.g. System maintenance scheduled for tonight..." 
+                                     placeholder="e.g. System maintenance scheduled for tonight..."
+                                     value={alertMessage}
+                                     onChange={(e) => setAlertMessage(e.target.value)}
                                    ></textarea>
                                </div>
                                <div>
                                    <label className="block text-sm font-medium text-slate-400 mb-1">Severity Level</label>
                                    <div className="flex gap-4 p-2 bg-slate-900 rounded-xl border border-slate-700">
                                        <label className="flex items-center gap-2 cursor-pointer flex-1 justify-center p-2 rounded-lg hover:bg-slate-800">
-                                           <input type="radio" name="severity" className="accent-blue-500" /> <span className="text-slate-300">Info</span>
+                                           <input type="radio" name="severity" className="accent-blue-500" checked={alertSeverity === 'INFO'} onChange={() => setAlertSeverity('INFO')} /> <span className="text-slate-300">Info</span>
                                        </label>
                                        <label className="flex items-center gap-2 cursor-pointer flex-1 justify-center p-2 rounded-lg hover:bg-slate-800">
-                                           <input type="radio" name="severity" className="accent-amber-500" defaultChecked /> <span className="text-amber-400 font-bold">Warning</span>
+                                           <input type="radio" name="severity" className="accent-amber-500" checked={alertSeverity === 'WARNING'} onChange={() => setAlertSeverity('WARNING')} /> <span className="text-amber-400 font-bold">Warning</span>
                                        </label>
                                        <label className="flex items-center gap-2 cursor-pointer flex-1 justify-center p-2 rounded-lg hover:bg-slate-800">
-                                           <input type="radio" name="severity" className="accent-red-500" /> <span className="text-red-400 font-bold">Critical</span>
+                                           <input type="radio" name="severity" className="accent-red-500" checked={alertSeverity === 'CRITICAL'} onChange={() => setAlertSeverity('CRITICAL')} /> <span className="text-red-400 font-bold">Critical</span>
                                        </label>
                                    </div>
                                </div>
                                <button 
-                                 onClick={() => handleAction("Alert Broadcasted to All Users")}
-                                 className="w-full py-3 bg-amber-600 hover:bg-amber-500 rounded-xl font-bold text-white mt-4 flex items-center justify-center gap-2"
+                                 onClick={() => {
+                                   const msg = alertMessage.trim() || (alertSeverity === 'CRITICAL' ? 'Critical system alert' : alertSeverity === 'WARNING' ? 'System warning' : 'System information');
+                                   dataService.addNotification({
+                                     type: 'SYSTEM',
+                                     title: `System Alert`,
+                                     message: msg,
+                                     time: 'Now'
+                                   });
+                                   setAlertMessage('');
+                                   setAlertSeverity('WARNING');
+                                   handleAction("Alert Broadcasted to All Users");
+                                 }}
+                                className="w-full py-3 bg-amber-600 hover:bg-amber-500 rounded-xl font-bold text-white mt-4 flex items-center justify-center gap-2"
                                >
                                    <Send className="w-4 h-4" /> Send Broadcast
                                </button>
@@ -275,6 +451,50 @@ export const AdminDashboard: React.FC = () => {
                                        <p>All pending users verified!</p>
                                    </div>
                                )}
+                           </div>
+                       </div>
+                   )}
+ 
+                   {/* PUBLISH RESULTS MODAL */}
+                   {activeModal === 'RESULTS' && (
+                       <div className="animate-fade-in">
+                           <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                               <BarChart2 className="w-6 h-6 text-green-400" /> Publish Exam Results
+                           </h3>
+                           <div className="space-y-4">
+                               <div>
+                                   <label className="block text-sm font-medium text-slate-400 mb-1">Select Exam</label>
+                                   <select
+                                     className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-green-500"
+                                     value={publishExamId}
+                                     onChange={(e) => setPublishExamId(e.target.value)}
+                                   >
+                                     <option value="">Choose an exam</option>
+                                     {dataService.getExams().map(ex => (
+                                       <option key={ex.id} value={ex.id}>{ex.title} • {ex.subject}</option>
+                                     ))}
+                                   </select>
+                               </div>
+                               <div className="p-3 bg-slate-900 rounded-xl border border-slate-700">
+                                   <p className="text-xs text-slate-400">
+                                     Pending submissions: {publishExamId ? dataService.getExamResults().filter(r => r.examId === publishExamId && !r.published).length : 0}
+                                   </p>
+                               </div>
+                               <button
+                                 onClick={() => {
+                                   if (!publishExamId) {
+                                     setNotification("Please select an exam");
+                                     setTimeout(() => setNotification(null), 2000);
+                                     return;
+                                   }
+                                   dataService.publishExamResults(publishExamId);
+                                   setPublishExamId('');
+                                   handleAction("Exam Results Published");
+                                 }}
+                                 className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-bold text-white mt-4 flex items-center justify-center gap-2"
+                               >
+                                   <CheckCircle className="w-5 h-5" /> Publish Results
+                               </button>
                            </div>
                        </div>
                    )}
@@ -390,6 +610,13 @@ export const AdminDashboard: React.FC = () => {
                       >
                           <FileText className="w-6 h-6 text-purple-400 group-hover:scale-110 transition-transform" />
                           <span className="text-xs font-bold text-purple-100">Create Exam</span>
+                      </button>
+                      <button 
+                        onClick={() => setActiveModal('RESULTS')}
+                        className="p-4 bg-green-600/20 hover:bg-green-600/30 border border-green-500/50 rounded-xl flex flex-col items-center gap-2 transition-all group"
+                      >
+                          <BarChart2 className="w-6 h-6 text-green-400 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-bold text-green-100">Publish Results</span>
                       </button>
                       <button 
                         onClick={() => setActiveModal('ALERT')}

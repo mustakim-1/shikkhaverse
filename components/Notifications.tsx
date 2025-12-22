@@ -1,58 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Calendar, Clock, AlertCircle, Trash2, X, Info } from 'lucide-react';
-
-export interface Notification {
-  id: string;
-  type: 'CLASS' | 'DEADLINE' | 'ANNOUNCEMENT' | 'SYSTEM';
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
-
-const initialNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'CLASS',
-    title: 'Physics Class Starting',
-    message: 'HSC Physics: Thermodynamics with Dr. Ahmed starts in 10 minutes.',
-    time: 'Now',
-    read: false
-  },
-  {
-    id: '2',
-    type: 'DEADLINE',
-    title: 'Assignment Due Soon',
-    message: 'Math: Calculus Integration Worksheet is due tonight at 11:59 PM.',
-    time: '2h remaining',
-    read: false
-  },
-  {
-    id: '3',
-    type: 'ANNOUNCEMENT',
-    title: 'Exam Schedule Released',
-    message: 'The schedule for the upcoming term finals has been published.',
-    time: '2 hours ago',
-    read: true
-  },
-  {
-    id: '4',
-    type: 'SYSTEM',
-    title: 'Maintenance Update',
-    message: 'Platform scheduled for brief maintenance on Saturday at 2 AM.',
-    time: '1 day ago',
-    read: true
-  }
-];
+import { Notification } from '../types';
+import { dataService } from '../services/dataService';
 
 export const Notifications: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
   useEffect(() => {
+    setNotifications(dataService.getNotifications());
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -65,17 +24,24 @@ export const Notifications: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (isOpen) {
+      setNotifications(dataService.getNotifications());
+    }
+  }, [isOpen]);
+ 
+
   const markAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setNotifications(dataService.markNotificationRead(id));
   };
 
   const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications(dataService.markAllNotificationsRead());
   };
 
   const deleteNotification = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setNotifications(prev => prev.filter(n => n.id !== id));
+    setNotifications(dataService.deleteNotification(id));
   };
 
   return (

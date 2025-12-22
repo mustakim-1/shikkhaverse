@@ -8,18 +8,25 @@ import {
   Tooltip, 
   ResponsiveContainer,
   LineChart,
-  Line
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area
 } from 'recharts';
 import { Play, BookOpen, Award, TrendingUp, Calendar, Filter, ChevronDown, CheckCircle, Circle, Bell, Plus, Trash2 } from 'lucide-react';
 import { User, Goal } from '../types';
 import { dataService } from '../services/dataService';
 
 const performanceData = [
-  { name: 'Physics', score: 85 },
-  { name: 'Math', score: 72 },
-  { name: 'Chem', score: 90 },
-  { name: 'Bio', score: 78 },
-  { name: 'ICT', score: 95 },
+  { name: 'Mon', score: 65 },
+  { name: 'Tue', score: 75 },
+  { name: 'Wed', score: 72 },
+  { name: 'Thu', score: 85 },
+  { name: 'Fri', score: 82 },
+  { name: 'Sat', score: 90 },
+  { name: 'Sun', score: 88 },
 ];
 
 const studyHoursData = [
@@ -28,6 +35,12 @@ const studyHoursData = [
   { day: 'Tue', hours: 3 },
   { day: 'Wed', hours: 5 },
   { day: 'Thu', hours: 4.5 },
+];
+
+const taskDistributionData = [
+  { name: 'Completed', value: 12, color: '#10b981' },
+  { name: 'Pending', value: 5, color: '#f59e0b' },
+  { name: 'Overdue', value: 2, color: '#ef4444' },
 ];
 
 // Enhanced Mock Data for Schedule with filtering tags
@@ -244,22 +257,57 @@ export const Dashboard: React.FC<{currentUser: User}> = ({ currentUser }) => {
         
         {/* Performance Chart */}
         <div className="lg:col-span-2 glass-panel p-6 rounded-2xl">
-          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-            <span className="w-2 h-6 bg-blue-500 rounded-full"></span>
-            Weekly Performance Analytics
-          </h3>
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <TrendingUp className="w-6 h-6 text-purple-400" />
+              Progress
+            </h3>
+            <div className="relative">
+                <button className="text-xs font-bold text-slate-400 flex items-center gap-1 hover:text-white transition-colors">
+                    Last Week <ChevronDown className="w-3 h-3" />
+                </button>
+            </div>
+          </div>
+          
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={performanceData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                <XAxis dataKey="name" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip 
-                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
-                    itemStyle={{ color: '#38bdf8' }}
+              <AreaChart data={performanceData}>
+                <defs>
+                  <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.5} />
+                <XAxis 
+                    dataKey="name" 
+                    stroke="#94a3b8" 
+                    tick={{fontSize: 12}} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    dy={10}
                 />
-                <Bar dataKey="score" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              </BarChart>
+                <YAxis 
+                    stroke="#94a3b8" 
+                    tick={{fontSize: 12}} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    dx={-10}
+                />
+                <Tooltip 
+                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc', borderRadius: '12px' }}
+                    itemStyle={{ color: '#a78bfa' }}
+                    cursor={{ stroke: '#8b5cf6', strokeWidth: 1, strokeDasharray: '4 4' }}
+                />
+                <Area 
+                    type="monotone" 
+                    dataKey="score" 
+                    stroke="#8b5cf6" 
+                    strokeWidth={3}
+                    fillOpacity={1} 
+                    fill="url(#colorScore)" 
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -375,6 +423,44 @@ export const Dashboard: React.FC<{currentUser: User}> = ({ currentUser }) => {
                           </button>
                       </div>
                   ))}
+               </div>
+            </div>
+
+            {/* Task Distribution Chart */}
+            <div className="glass-panel p-6 rounded-2xl h-64 flex flex-col">
+               <h3 className="font-bold mb-2 text-sm text-slate-400 uppercase tracking-wider">Assignments Status</h3>
+               <div className="flex-1 w-full flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={taskDistributionData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {taskDistributionData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                        contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px' }}
+                        itemStyle={{ color: '#f8fafc' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Legend */}
+                <div className="flex flex-col gap-2 ml-4">
+                    {taskDistributionData.map((item, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></div>
+                            <span className="text-slate-300">{item.name}</span>
+                            <span className="font-bold text-white">{item.value}</span>
+                        </div>
+                    ))}
+                </div>
                </div>
             </div>
 

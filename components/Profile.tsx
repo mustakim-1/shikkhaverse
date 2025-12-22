@@ -27,6 +27,8 @@ import {
   Radar, 
   LineChart, 
   Line, 
+  BarChart,
+  Bar,
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -263,6 +265,31 @@ export const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
               {/* VIEW: EXAMS */}
               {activeTab === 'EXAMS' && (
                   <div className="space-y-6 animate-fade-in">
+                      {/* Exam Performance Chart */}
+                      <div className="glass-panel p-6 rounded-2xl h-80">
+                          <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                              <TrendingUp className="w-5 h-5 text-blue-400" /> Exam Scores Overview
+                          </h3>
+                          <ResponsiveContainer width="100%" height="100%">
+                              <BarChart 
+                                data={(academic?.examHistory || []).map(e => ({
+                                    name: e.title.split(' ')[0], // Shorten name
+                                    score: parseInt(e.marks) || 0,
+                                    full: 100 // Assuming 100 for now
+                                }))}
+                              >
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                                  <XAxis dataKey="name" stroke="#94a3b8" tick={{fontSize: 12}} />
+                                  <YAxis stroke="#94a3b8" tick={{fontSize: 12}} domain={[0, 100]} />
+                                  <Tooltip 
+                                      contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }}
+                                      cursor={{fill: '#334155', opacity: 0.2}}
+                                  />
+                                  <Bar dataKey="score" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                              </BarChart>
+                          </ResponsiveContainer>
+                      </div>
+
                       <div className="glass-panel p-6 rounded-2xl">
                           <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
                               <FileText className="w-5 h-5 text-purple-400" /> Exam History

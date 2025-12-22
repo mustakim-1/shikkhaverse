@@ -1,4 +1,4 @@
-import { Goal, Post, Assignment, User, ClubMessage, Article } from '../types';
+import { Goal, Post, Assignment, User, ClubMessage, Article, Exam, ExamSection, ExamSubmission, ExamResultSummary, PublishedClass, Notification } from '../types';
 
 const STORAGE_KEYS = {
   GOALS: 'shikkhaverse_goals',
@@ -7,7 +7,11 @@ const STORAGE_KEYS = {
   USERS: 'shikkhaverse_users',
   CURRENT_USER: 'shikkhaverse_current_user',
   CLUB_MESSAGES: 'shikkhaverse_club_messages',
-  ARTICLES: 'shikkhaverse_articles'
+  ARTICLES: 'shikkhaverse_articles',
+  EXAMS: 'shikkhaverse_exams',
+  CLASSES: 'shikkhaverse_classes',
+  EXAM_RESULTS: 'shikkhaverse_exam_results',
+  NOTIFICATIONS: 'shikkhaverse_notifications'
 };
 
 // Initial Mock Data
@@ -84,6 +88,43 @@ const INITIAL_ARTICLES: Article[] = [
     date: '08 Dec 2024',
     readTime: '12 min read',
     content: 'Don\'t memorize formulas blindly. Understand the derivation to solve complex problems...'
+  }
+];
+
+const INITIAL_EXAMS: Exam[] = [];
+const INITIAL_CLASSES: PublishedClass[] = [];
+const INITIAL_NOTIFICATIONS: Notification[] = [
+  {
+    id: '1',
+    type: 'CLASS',
+    title: 'Physics Class Starting',
+    message: 'HSC Physics: Thermodynamics with Dr. Ahmed starts in 10 minutes.',
+    time: 'Now',
+    read: false
+  },
+  {
+    id: '2',
+    type: 'DEADLINE',
+    title: 'Assignment Due Soon',
+    message: 'Math: Calculus Integration Worksheet is due tonight at 11:59 PM.',
+    time: '2h remaining',
+    read: false
+  },
+  {
+    id: '3',
+    type: 'ANNOUNCEMENT',
+    title: 'Exam Schedule Released',
+    message: 'The schedule for the upcoming term finals has been published.',
+    time: '2 hours ago',
+    read: true
+  },
+  {
+    id: '4',
+    type: 'SYSTEM',
+    title: 'Maintenance Update',
+    message: 'Platform scheduled for brief maintenance on Saturday at 2 AM.',
+    time: '1 day ago',
+    read: true
   }
 ];
 
@@ -229,6 +270,11 @@ export const dataService = {
       // We can add specific user data persistence here if we want to decouple from authService.
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
   },
+ 
+  getCurrentUser: (): User | null => {
+    const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    return stored ? JSON.parse(stored) : null;
+  },
 
   // --- Articles ---
   getArticles: (): Article[] => {
@@ -250,6 +296,158 @@ export const dataService = {
     };
     const updated = [newArticle, ...articles];
     localStorage.setItem(STORAGE_KEYS.ARTICLES, JSON.stringify(updated));
+    return updated;
+  },
+
+  // --- Exams ---
+  getExams: (): Exam[] => {
+    const stored = localStorage.getItem(STORAGE_KEYS.EXAMS);
+    if (!stored) {
+      localStorage.setItem(STORAGE_KEYS.EXAMS, JSON.stringify(INITIAL_EXAMS));
+      return INITIAL_EXAMS;
+    }
+    return JSON.parse(stored);
+  },
+
+  createExam: (payload: { title: string; subject: string; durationMinutes: number; totalMarks: number; createdBy: string; sections: ExamSection[] }): Exam => {
+    const exams = dataService.getExams();
+    const exam: Exam = {
+      id: Date.now().toString(),
+      title: payload.title,
+      subject: payload.subject,
+      durationMinutes: payload.durationMinutes,
+      totalMarks: payload.totalMarks,
+      createdBy: payload.createdBy,
+      createdAt: new Date().toISOString(),
+      sections: payload.sections
+    };
+    const updated = [exam, ...exams];
+    localStorage.setItem(STORAGE_KEYS.EXAMS, JSON.stringify(updated));
+    return exam;
+  },
+
+  submitExam: (submission: ExamSubmission): ExamResultSummary => {
+    const exams = dataService.getExams();
+    const exam = exams.find(e => e.id === submission.examId);
+    if (!exam) {
+      return { id: Date.now().toString(), examId: submission.examId, studentId: 'unknown', totalMarks: 0, obtainedMarks: 0, mcqCorrect: 0, mcqTotal: 0, published: false };
+    }
+    let obtained = 0;
+    let mcqCorrect = 0;
+    let mcqTotal = 0;
+    exam.sections.forEach(sec => {
+      if (sec.type === 'MCQ' && sec.mcq) {
+        mcqTotal += sec.mcq.length;
+        sec.mcq.forEach(q => {
+          const ans = submission.answers[q.id];
+          if (typeof ans === 'number' && ans === q.correctIndex) {
+            obtained += q.marks;
+            mcqCorrect += 1;
+          }
+        });
+      }
+    });
+    const currentUser = dataService.getCurrentUser();
+    const summary: ExamResultSummary = {
+      id: Date.now().toString(),
+      examId: exam.id,
+      studentId: currentUser?.id || 'guest',
+      studentName: currentUser?.name,
+      totalMarks: exam.totalMarks,
+      obtainedMarks: obtained,
+      mcqCorrect,
+      mcqTotal,
+      published: false
+    };
+    const stored = localStorage.getItem(STORAGE_KEYS.EXAM_RESULTS);
+    const list: ExamResultSummary[] = stored ? JSON.parse(stored) : [];
+    const updated = [summary, ...list];
+    localStorage.setItem(STORAGE_KEYS.EXAM_RESULTS, JSON.stringify(updated));
+    return summary;
+  },
+
+  getExamResults: (): ExamResultSummary[] => {
+    const stored = localStorage.getItem(STORAGE_KEYS.EXAM_RESULTS);
+    return stored ? JSON.parse(stored) : [];
+  },
+ 
+  getPublishedResultsForStudent: (studentId: string): ExamResultSummary[] => {
+    const list = dataService.getExamResults();
+    return list.filter(r => r.studentId === studentId && r.published === true);
+  },
+ 
+  publishExamResults: (examId: string): ExamResultSummary[] => {
+    const list = dataService.getExamResults();
+    const updated = list.map(r => r.examId === examId ? { ...r, published: true } : r);
+    localStorage.setItem(STORAGE_KEYS.EXAM_RESULTS, JSON.stringify(updated));
+    return updated;
+  },
+
+  // --- Classes ---
+  getClasses: (): PublishedClass[] => {
+    const stored = localStorage.getItem(STORAGE_KEYS.CLASSES);
+    if (!stored) {
+      localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(INITIAL_CLASSES));
+      return INITIAL_CLASSES;
+    }
+    return JSON.parse(stored);
+  },
+
+  publishClass: (payload: Omit<PublishedClass, 'id' | 'publishedAt'>): PublishedClass => {
+    const classes = dataService.getClasses();
+    const item: PublishedClass = {
+      id: Date.now().toString(),
+      ...payload,
+      publishedAt: new Date().toISOString()
+    };
+    const updated = [item, ...classes];
+    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(updated));
+    return item;
+  },
+
+  // --- Notifications ---
+  getNotifications: (): Notification[] => {
+    const stored = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
+    if (!stored) {
+      localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(INITIAL_NOTIFICATIONS));
+      return INITIAL_NOTIFICATIONS;
+    }
+    return JSON.parse(stored);
+  },
+
+  addNotification: (payload: { type: Notification['type']; title: string; message: string; time?: string }): Notification[] => {
+    const list = dataService.getNotifications();
+    const item: Notification = {
+      id: Date.now().toString(),
+      type: payload.type,
+      title: payload.title,
+      message: payload.message,
+      time: payload.time || 'Now',
+      read: false
+    };
+    const updated = [item, ...list];
+    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated));
+    return updated;
+  },
+
+  markNotificationRead: (id: string): Notification[] => {
+    const list = dataService.getNotifications();
+    const updated = list.map(n => n.id === id ? { ...n, read: true } : n);
+    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated));
+    return updated;
+  },
+
+  markAllNotificationsRead: (): Notification[] => {
+    const list = dataService.getNotifications();
+    const updated = list.map(n => ({ ...n, read: true }));
+    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated));
+    return updated;
+  },
+
+  deleteNotification: (id: string): Notification[] => {
+    const list = dataService.getNotifications();
+    const updated = list.filter(n => n.id !== id);
+    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated));
     return updated;
   }
 };

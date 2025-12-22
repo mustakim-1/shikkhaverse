@@ -519,7 +519,7 @@ const App: React.FC = () => {
            {currentView === ViewState.DASHBOARD && currentUser && <Dashboard currentUser={currentUser} />}
            {currentView === ViewState.ADMIN_DASHBOARD && <AdminDashboard />}
            {currentView === ViewState.CLASSROOM && <Classroom />}
-           {currentView === ViewState.AI_MENTOR && <AIMentor />}
+           {currentView === ViewState.AI_MENTOR && <AIMentor currentUser={currentUser} />}
            {currentView === ViewState.VIRTUAL_LAB && <KnowledgeHub initialTab="VIRTUAL_LAB" userRole={currentUser?.role} />}
            {currentView === ViewState.EXAMS && <Exams />}
            {currentView === ViewState.COMMUNITY && <Community />}

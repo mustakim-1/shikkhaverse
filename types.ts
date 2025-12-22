@@ -198,3 +198,79 @@ export interface Course {
   thumbnail: string;
   isLive: boolean;
 }
+
+export type ExamSectionType = 'MCQ' | 'SQ' | 'CQ';
+
+export interface ExamQuestionMCQ {
+  id: string;
+  text: string;
+  options: string[];
+  correctIndex: number;
+  marks: number;
+}
+
+export interface ExamQuestionSQ {
+  id: string;
+  text: string;
+  marks: number;
+}
+
+export interface ExamQuestionCQ {
+  id: string;
+  text: string;
+  marks: number;
+}
+
+export interface ExamSection {
+  type: ExamSectionType;
+  mcq?: ExamQuestionMCQ[];
+  sq?: ExamQuestionSQ[];
+  cq?: ExamQuestionCQ[];
+}
+
+export interface Exam {
+  id: string;
+  title: string;
+  subject: string;
+  durationMinutes: number;
+  totalMarks: number;
+  createdBy: string;
+  createdAt: string;
+  sections: ExamSection[];
+}
+
+export interface ExamSubmission {
+  examId: string;
+  answers: Record<string, number | string>;
+}
+
+export interface ExamResultSummary {
+  id: string;
+  examId: string;
+  studentId: string;
+  studentName?: string;
+  totalMarks: number;
+  obtainedMarks: number;
+  mcqCorrect: number;
+  mcqTotal: number;
+  published: boolean;
+}
+
+export interface PublishedClass {
+  id: string;
+  title: string;
+  instructor: string;
+  date: string;
+  time: string;
+  videoUrl?: string;
+  publishedAt: string;
+}
+
+export interface Notification {
+  id: string;
+  type: 'CLASS' | 'DEADLINE' | 'ANNOUNCEMENT' | 'SYSTEM';
+  title: string;
+  message: string;
+  time: string;
+  read: boolean;
+}
