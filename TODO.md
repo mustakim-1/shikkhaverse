@@ -1,7 +1,7 @@
-# TODO: Fix AI Mentor Rate Limit Issue
+# Parent Dashboard Feature Implementation
 
-## Steps to Complete
-
-- [x] Edit `components/AIChat.tsx`: Move daily count update to after successful API response to avoid wasting quota on failures.
-- [x] Edit `services/geminiService.ts`: Change rate limit error message to "The AI mentor is currently busy. Please try again in a moment." and increase maxAttempts from 3 to 5.
-- [x] Test the changes to ensure rate limits are handled better and real answers are shown.
+## Tasks
+- [ ] Add parent users to authService with parentId linking to students
+- [ ] Modify login logic to allow parents to login with student ID + parent code
+- [ ] Update ParentDashboard to dynamically show data based on the linked student
+- [ ] Update App.tsx to pass student data to ParentDashboard

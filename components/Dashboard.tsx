@@ -141,9 +141,8 @@ export const Dashboard: React.FC<{currentUser: User}> = ({ currentUser }) => {
   });
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      
-      {/* Welcome Banner */}
+    <div className="animate-fade-in space-y-8">
+      {/* Top Welcome Section */}
       <div className="glass-panel p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 bg-gradient-to-r from-blue-900/40 to-slate-900/40 border-blue-500/20">
           <div>
               <h1 className="text-3xl font-bold text-white mb-2">Welcome back, {currentUser.name.split(' ')[0]}! 👋</h1>

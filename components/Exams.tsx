@@ -365,7 +365,7 @@ export const Exams: React.FC = () => {
              {[
                 { title: "Board Questions", desc: "SSC & HSC All Boards (2015-2023)", color: "border-blue-500/30" },
                 { title: "Admission Tests", desc: "BUET, Medical, DU (Last 10 Years)", color: "border-purple-500/30" },
-                { title: "Model Tests", desc: "Exclusive ShikkhaVerse Premium Tests", color: "border-emerald-500/30" }
+                { title: "Model Tests", desc: "Exclusive BRIGHT BD Premium Tests", color: "border-emerald-500/30" }
              ].map((bank, idx) => (
                 <div key={idx} className={`glass-panel p-6 rounded-2xl border ${bank.color} hover:bg-slate-800/80 transition-all cursor-pointer group`}>
                    <h4 className="font-bold text-lg text-slate-200 group-hover:text-blue-400 transition-colors">{bank.title}</h4>

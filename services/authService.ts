@@ -1,7 +1,6 @@
-
 import { User, UserRole } from '../types';
 
-const STORAGE_KEY = 'shikkhaverse_users';
+const STORAGE_KEY = 'bright_bd_users';
 
 // Pre-seeded users for demonstration
 const DEFAULT_USERS: User[] = [
@@ -28,7 +27,7 @@ const DEFAULT_USERS: User[] = [
     portfolio: {
       certificates: [
         { id: '1', title: 'Physics Olympiad 2024', issuer: 'National Science Guild', date: 'Mar 15, 2024', type: 'Gold Medal' },
-        { id: '2', title: 'Advanced Calculus', issuer: 'ShikkhaVerse Academy', date: 'Feb 10, 2024', type: 'Completion' },
+        { id: '2', title: 'Advanced Calculus', issuer: 'BRIGHT BD Academy', date: 'Feb 10, 2024', type: 'Completion' },
         { id: '3', title: 'Debate Championship', issuer: 'Inter-School Forum', date: 'Jan 20, 2024', type: 'Runner Up' }
       ],
       skills: [
@@ -93,9 +92,18 @@ const DEFAULT_USERS: User[] = [
     name: 'Dr. Ahmed Khan',
     role: UserRole.TEACHER,
     password: 'teacher123',
-    email: 'dr.ahmed@shikkhaverse.com',
+    email: 'dr.ahmed@brightbd.com',
     points: 0,
     joinedDate: '2023-05-20'
+  },
+  {
+    id: 'ST-2024-882-PARENT',
+    name: 'Rahim\'s Parent',
+    role: UserRole.PARENT,
+    password: 'parent123',
+    parentId: 'ST-2024-882',
+    points: 0,
+    joinedDate: '2024-01-15'
   }
 ];
 
@@ -114,11 +122,29 @@ export const authService = {
     return data ? JSON.parse(data) : DEFAULT_USERS;
   },
 
-  login: (id: string, password: string): { success: boolean; user?: User; message?: string } => {
+  login: (id: string, password: string, isParent: boolean = false): { success: boolean; user?: User; message?: string } => {
     const users = authService.getUsers();
-    // Case insensitive ID check
-    const user = users.find(u => u.id.toUpperCase() === id.toUpperCase());
 
+    if (isParent) {
+      // Find parent by parentId (student ID) or by their own ID
+      const parentUser = users.find(u => 
+        u.role === UserRole.PARENT && 
+        (u.parentId?.toUpperCase() === id.toUpperCase() || u.id.toUpperCase() === id.toUpperCase())
+      );
+
+      if (!parentUser) {
+        return { success: false, message: "Parent account or Student ID not found." };
+      }
+
+      if (parentUser.password !== password) {
+        return { success: false, message: "Incorrect parent code." };
+      }
+
+      return { success: true, user: parentUser };
+    }
+
+    // Regular user login
+    const user = users.find(u => u.id.toUpperCase() === id.toUpperCase());
     if (!user) {
       return { success: false, message: "User ID not found." };
     }
@@ -132,7 +158,7 @@ export const authService = {
 
   register: (user: User): { success: boolean; message?: string } => {
     const users = authService.getUsers();
-    
+
     // Check if ID already exists
     if (users.find(u => u.id === user.id)) {
       return { success: false, message: "User ID already exists." };
@@ -141,5 +167,21 @@ export const authService = {
     const newUsers = [...users, user];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newUsers));
     return { success: true };
+  },
+
+  getCurrentUser: (): User | null => {
+    const currentUserId = localStorage.getItem('currentUserId');
+    if (!currentUserId) return null;
+
+    const users = authService.getUsers();
+    return users.find(u => u.id === currentUserId) || null;
+  },
+
+  setCurrentUser: (user: User): void => {
+    localStorage.setItem('currentUserId', user.id);
+  },
+
+  logout: (): void => {
+    localStorage.removeItem('currentUserId');
   }
 };

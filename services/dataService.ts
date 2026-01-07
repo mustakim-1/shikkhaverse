@@ -1,17 +1,19 @@
-import { Goal, Post, Assignment, User, ClubMessage, Article, Exam, ExamSection, ExamSubmission, ExamResultSummary, PublishedClass, Notification } from '../types';
+import { ViewState, UserRole, Language } from '../types';
+import type { Goal, Post, Assignment, User, ClubMessage, Article, Exam, ExamSection, ExamSubmission, ExamResultSummary, PublishedClass, AppNotification, SOSAlert } from '../types';
 
 const STORAGE_KEYS = {
-  GOALS: 'shikkhaverse_goals',
-  POSTS: 'shikkhaverse_posts',
-  ASSIGNMENTS: 'shikkhaverse_assignments',
-  USERS: 'shikkhaverse_users',
-  CURRENT_USER: 'shikkhaverse_current_user',
-  CLUB_MESSAGES: 'shikkhaverse_club_messages',
-  ARTICLES: 'shikkhaverse_articles',
-  EXAMS: 'shikkhaverse_exams',
-  CLASSES: 'shikkhaverse_classes',
-  EXAM_RESULTS: 'shikkhaverse_exam_results',
-  NOTIFICATIONS: 'shikkhaverse_notifications'
+  GOALS: 'bright_bd_goals',
+  POSTS: 'bright_bd_posts',
+  ASSIGNMENTS: 'bright_bd_assignments',
+  USERS: 'bright_bd_users',
+  CURRENT_USER: 'bright_bd_current_user',
+  CLUB_MESSAGES: 'bright_bd_club_messages',
+  ARTICLES: 'bright_bd_articles',
+  EXAMS: 'bright_bd_exams',
+  CLASSES: 'bright_bd_classes',
+  EXAM_RESULTS: 'bright_bd_exam_results',
+  NOTIFICATIONS: 'bright_bd_notifications',
+  SOS_ALERTS: 'bright_bd_sos_alerts'
 };
 
 // Initial Mock Data
@@ -93,7 +95,7 @@ const INITIAL_ARTICLES: Article[] = [
 
 const INITIAL_EXAMS: Exam[] = [];
 const INITIAL_CLASSES: PublishedClass[] = [];
-const INITIAL_NOTIFICATIONS: Notification[] = [
+const INITIAL_NOTIFICATIONS: AppNotification[] = [
   {
     id: '1',
     type: 'CLASS',
@@ -263,17 +265,78 @@ export const dataService = {
   },
 
   // --- User ---
+  getUsers: (): User[] => {
+    const stored = localStorage.getItem(STORAGE_KEYS.USERS);
+    if (!stored) return [];
+    return JSON.parse(stored);
+  },
+
   updateUser: (user: User) => {
-      // In a real app, this would update the backend
-      // Here we just update the authService's local storage if needed, 
-      // but usually authService handles the user session. 
-      // We can add specific user data persistence here if we want to decouple from authService.
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+      const users = dataService.getUsers();
+      const updated = users.map(u => u.id === user.id ? user : u);
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(updated));
   },
  
+  deleteUser: (id: string): User[] => {
+    const users = dataService.getUsers();
+    const updated = users.filter(u => u.id !== id);
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(updated));
+    return updated;
+  },
+
+  updateUserRole: (id: string, role: UserRole): User[] => {
+    const users = dataService.getUsers();
+    const updated = users.map(u => u.id === id ? { ...u, role } : u);
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(updated));
+    return updated;
+  },
+
   getCurrentUser: (): User | null => {
     const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
     return stored ? JSON.parse(stored) : null;
+  },
+
+  logout: () => {
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+  },
+
+  // --- SOS Alerts ---
+  getSOSAlerts: (): SOSAlert[] => {
+    const stored = localStorage.getItem(STORAGE_KEYS.SOS_ALERTS);
+    return stored ? JSON.parse(stored) : [];
+  },
+
+  createSOSAlert: (studentId: string, studentName: string, location?: { lat: number, lng: number, address?: string }): SOSAlert => {
+    const alerts = dataService.getSOSAlerts();
+    const newAlert: SOSAlert = {
+      id: Date.now().toString(),
+      studentId,
+      studentName,
+      timestamp: new Date().toISOString(),
+      location,
+      status: 'ACTIVE'
+    };
+    
+    const updated = [newAlert, ...alerts];
+    localStorage.setItem(STORAGE_KEYS.SOS_ALERTS, JSON.stringify(updated));
+    
+    // Also create a notification for parents
+    const users = dataService.getUsers();
+    const student = users.find(u => u.id === studentId);
+    if (student?.parentPhone) {
+        // Mock sending SMS
+        console.log(`[SMS] SOS Alert sent to parent phone: ${student.parentPhone}. Message: EMERGENCY! ${studentName} has triggered an SOS alert. Location: ${location?.address || 'Unknown'}`);
+    }
+
+    return newAlert;
+  },
+
+  resolveSOSAlert: (id: string): SOSAlert[] => {
+    const alerts = dataService.getSOSAlerts();
+    const updated = alerts.map(a => a.id === id ? { ...a, status: 'RESOLVED' as const } : a);
+    localStorage.setItem(STORAGE_KEYS.SOS_ALERTS, JSON.stringify(updated));
+    return updated;
   },
 
   // --- Articles ---
@@ -295,6 +358,13 @@ export const dataService = {
       readTime: '5 min read' // Mock read time
     };
     const updated = [newArticle, ...articles];
+    localStorage.setItem(STORAGE_KEYS.ARTICLES, JSON.stringify(updated));
+    return updated;
+  },
+
+  deleteArticle: (id: string): Article[] => {
+    const articles = dataService.getArticles();
+    const updated = articles.filter(a => a.id !== id);
     localStorage.setItem(STORAGE_KEYS.ARTICLES, JSON.stringify(updated));
     return updated;
   },
@@ -324,6 +394,13 @@ export const dataService = {
     const updated = [exam, ...exams];
     localStorage.setItem(STORAGE_KEYS.EXAMS, JSON.stringify(updated));
     return exam;
+  },
+
+  deleteExam: (id: string): Exam[] => {
+    const exams = dataService.getExams();
+    const updated = exams.filter(e => e.id !== id);
+    localStorage.setItem(STORAGE_KEYS.EXAMS, JSON.stringify(updated));
+    return updated;
   },
 
   submitExam: (submission: ExamSubmission): ExamResultSummary => {
@@ -406,7 +483,7 @@ export const dataService = {
   },
 
   // --- Notifications ---
-  getNotifications: (): Notification[] => {
+  getNotifications: (): AppNotification[] => {
     const stored = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
     if (!stored) {
       localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(INITIAL_NOTIFICATIONS));
@@ -415,9 +492,9 @@ export const dataService = {
     return JSON.parse(stored);
   },
 
-  addNotification: (payload: { type: Notification['type']; title: string; message: string; time?: string }): Notification[] => {
+  addNotification: (payload: { type: AppNotification['type']; title: string; message: string; time?: string }): AppNotification[] => {
     const list = dataService.getNotifications();
-    const item: Notification = {
+    const item: AppNotification = {
       id: Date.now().toString(),
       type: payload.type,
       title: payload.title,
@@ -430,24 +507,75 @@ export const dataService = {
     return updated;
   },
 
-  markNotificationRead: (id: string): Notification[] => {
+  markNotificationRead: (id: string): AppNotification[] => {
     const list = dataService.getNotifications();
     const updated = list.map(n => n.id === id ? { ...n, read: true } : n);
     localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated));
     return updated;
   },
 
-  markAllNotificationsRead: (): Notification[] => {
+  markAllNotificationsRead: (): AppNotification[] => {
     const list = dataService.getNotifications();
     const updated = list.map(n => ({ ...n, read: true }));
     localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated));
     return updated;
   },
 
-  deleteNotification: (id: string): Notification[] => {
+  deleteNotification: (id: string): AppNotification[] => {
     const list = dataService.getNotifications();
     const updated = list.filter(n => n.id !== id);
     localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated));
     return updated;
+  },
+  triggerPush: async (title: string, message: string) => {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.showNotification(title, { body: message });
+      } else if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, { body: message });
+      }
+    } catch {}
+    dataService.addNotification({ type: 'SYSTEM', title, message, time: 'Now' });
+  },
+  startViewSession: (view: string) => {
+    const key = 'sv_analytics_sessions';
+    const stored = localStorage.getItem(key);
+    const sessions: any[] = stored ? JSON.parse(stored) : [];
+    sessions.push({ id: Date.now(), view, start: Date.now() });
+    localStorage.setItem(key, JSON.stringify(sessions));
+  },
+  endViewSession: () => {
+    const key = 'sv_analytics_sessions';
+    const stored = localStorage.getItem(key);
+    const sessions: any[] = stored ? JSON.parse(stored) : [];
+    const last = sessions[sessions.length - 1];
+    if (last && !last.end) {
+      last.end = Date.now();
+      last.duration = last.end - last.start;
+      sessions[sessions.length - 1] = last;
+      localStorage.setItem(key, JSON.stringify(sessions));
+    }
+  },
+  getAnalyticsSummary: () => {
+    const key = 'sv_analytics_sessions';
+    const stored = localStorage.getItem(key);
+    const sessions: any[] = stored ? JSON.parse(stored) : [];
+    const totals: Record<string, number> = {};
+    sessions.forEach(s => {
+      if (s.duration) {
+        totals[s.view] = (totals[s.view] || 0) + s.duration;
+      }
+    });
+    const entries = Object.entries(totals).map(([view, ms]) => ({ view, minutes: Math.round(ms / 60000) }));
+    entries.sort((a, b) => b.minutes - a.minutes);
+    return entries.slice(0, 5);
+  },
+  searchAll: (query: string) => {
+    const q = query.toLowerCase();
+    const posts = dataService.getPosts().filter(p => p.content.toLowerCase().includes(q));
+    const articles = dataService.getArticles().filter(a => a.title.toLowerCase().includes(q));
+    const classes = dataService.getClasses().filter(c => c.title.toLowerCase().includes(q) || (c.instructor || '').toLowerCase().includes(q));
+    return { posts, articles, classes };
   }
 };

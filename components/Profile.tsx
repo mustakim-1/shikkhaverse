@@ -190,7 +190,7 @@ export const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                       <div className="glass-panel p-6 rounded-2xl">
                           <h3 className="font-bold text-lg mb-4">About Me</h3>
                           <p className="text-slate-300 leading-relaxed">
-                             I am a {currentUser.role.toLowerCase()} at ShikkhaVerse. Joined on {currentUser.joinedDate}.
+                             I am a {currentUser.role.toLowerCase()} at BRIGHT BD. Joined on {currentUser.joinedDate}.
                              Focused on achieving academic excellence and mastering concepts deeply.
                           </p>
                       </div>

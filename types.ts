@@ -6,6 +6,11 @@ export enum UserRole {
   PARENT = 'PARENT'
 }
 
+export enum Language {
+  ENGLISH = 'en',
+  BANGLA = 'bn'
+}
+
 export enum ViewState {
   DASHBOARD = 'DASHBOARD',
   ADMIN_DASHBOARD = 'ADMIN_DASHBOARD',
@@ -18,7 +23,9 @@ export enum ViewState {
   PROFILE = 'PROFILE',
   SUBSCRIPTION = 'SUBSCRIPTION',
   KNOWLEDGE_HUB = 'KNOWLEDGE_HUB',
-  PARENT_DASHBOARD = 'PARENT_DASHBOARD'
+  PARENT_DASHBOARD = 'PARENT_DASHBOARD',
+  WELLNESS = 'WELLNESS',
+  GAMIFICATION = 'GAMIFICATION'
 }
 
 export interface User {
@@ -35,8 +42,10 @@ export interface User {
   joinedDate: string;
   subscriptionStatus?: 'FREE' | 'PREMIUM';
   parentId?: string;
+  parentPhone?: string;
   portfolio?: UserPortfolio;
   academicRecord?: AcademicRecord;
+  aiUsageCount?: number;
 }
 
 export interface UserPortfolio {
@@ -120,6 +129,19 @@ export interface AcademicRecord {
   growthData: GrowthMetric[];
   attendance: AttendanceRecord[];
   weakAreas?: WeakArea[];
+}
+
+export interface SOSAlert {
+  id: string;
+  studentId: string;
+  studentName: string;
+  timestamp: string;
+  location?: {
+    lat: number;
+    lng: number;
+    address?: string;
+  };
+  status: 'ACTIVE' | 'RESOLVED';
 }
 
 export interface Article {
@@ -266,7 +288,7 @@ export interface PublishedClass {
   publishedAt: string;
 }
 
-export interface Notification {
+export interface AppNotification {
   id: string;
   type: 'CLASS' | 'DEADLINE' | 'ANNOUNCEMENT' | 'SYSTEM';
   title: string;

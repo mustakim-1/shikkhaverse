@@ -1,17 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Calendar, Clock, AlertCircle, Trash2, X, Info } from 'lucide-react';
-import { Notification } from '../types';
+import { AppNotification } from '../types';
 import { dataService } from '../services/dataService';
 
 export const Notifications: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
   useEffect(() => {
-    setNotifications(dataService.getNotifications());
+    const handleRefresh = () => {
+      setNotifications(dataService.getNotifications());
+    };
+    
+    handleRefresh();
+    
+    const interval = setInterval(handleRefresh, 10000); // Poll for new notifications
+    
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -21,6 +28,7 @@ export const Notifications: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      clearInterval(interval);
     };
   }, []);
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, Send, Sparkles, AlertCircle, Image as ImageIcon, X } from 'lucide-react';
+import { Bot, Send, Sparkles, AlertCircle, Image as ImageIcon, X, Mic, MicOff, Volume2 } from 'lucide-react';
 import { ChatMessage, User } from '../types';
 import { sendMessageToAI } from '../services/geminiService';
+import { translationService } from '../services/translationService';
 
 interface AIChatProps {
   currentUser?: User;
@@ -24,6 +25,9 @@ const AIChat: React.FC<AIChatProps> = ({ currentUser }) => {
   const [dailyCount, setDailyCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -112,6 +116,13 @@ const AIChat: React.FC<AIChatProps> = ({ currentUser }) => {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, aiMsg]);
+      
+      if (voiceEnabled && 'speechSynthesis' in window) {
+        const utter = new SpeechSynthesisUtterance(responseText);
+        const lang = translationService.getLanguage();
+        utter.lang = lang === 'bn' ? 'bn-BD' : 'en-US';
+        window.speechSynthesis.speak(utter);
+      }
 
       // Update daily count only after successful response
       const newCount = dailyCount + 1;
@@ -154,6 +165,15 @@ const AIChat: React.FC<AIChatProps> = ({ currentUser }) => {
                 <AlertCircle size={14} className="text-yellow-500" />
                 <span className="text-xs text-yellow-500 font-medium">Ethical Mode</span>
             </div>
+            <button
+              onClick={() => {
+                setVoiceEnabled(v => !v);
+              }}
+              className={`px-3 py-1 rounded-full text-xs font-bold ${voiceEnabled ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300'} border border-slate-700`}
+              title="Toggle voice responses"
+            >
+              <Volume2 className="w-4 h-4" />
+            </button>
         </div>
       </div>
 
@@ -238,6 +258,37 @@ const AIChat: React.FC<AIChatProps> = ({ currentUser }) => {
             className="absolute right-2 p-2 bg-primary hover:bg-primary/90 rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send size={20} />
+          </button>
+          <button
+            onClick={() => {
+              if (isListening) {
+                setIsListening(false);
+                try {
+                  recognitionRef.current && recognitionRef.current.stop();
+                } catch {}
+              } else {
+                const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+                if (SR) {
+                  const rec = new SR();
+                  const lang = translationService.getLanguage();
+                  rec.lang = lang === 'bn' ? 'bn-BD' : 'en-US';
+                  rec.interimResults = false;
+                  rec.maxAlternatives = 1;
+                  rec.onresult = (e: any) => {
+                    const text = e.results[0][0].transcript;
+                    setInput(text);
+                  };
+                  rec.onend = () => setIsListening(false);
+                  recognitionRef.current = rec;
+                  setIsListening(true);
+                  rec.start();
+                }
+              }
+            }}
+            className="absolute right-14 p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-white transition-all"
+            title="Voice input"
+          >
+            {isListening ? <MicOff size={20} /> : <Mic size={20} />}
           </button>
         </div>
         <p className="text-center text-[10px] text-slate-500 mt-2">
