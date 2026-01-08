@@ -557,7 +557,7 @@ const App: React.FC = () => {
                 {currentUser?.role === UserRole.ADMIN ? <Shield className="w-6 h-6 text-white" /> : <GraduationCap className="w-6 h-6 text-white" />}
             </div>
             <div>
-                <span className="text-xl font-bold tracking-tight block leading-none">BRIGHT BD</span>
+                <span className="text-xl font-bold tracking-tight block leading-none">Shikkhaverse</span>
                 {currentUser?.role === UserRole.ADMIN && <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Administrator</span>}
             </div>
           </div>
@@ -579,7 +579,7 @@ const App: React.FC = () => {
                     <div className="text-xs font-bold text-slate-500 px-4 mb-2 mt-4 uppercase tracking-wider">Learning</div>
                     <NavItem view={ViewState.DASHBOARD} icon={LayoutDashboard} label={t('common.dashboard')} />
                     <NavItem view={ViewState.CLASSROOM} icon={GraduationCap} label={t('common.classroom')} />
-                    <NavItem view={ViewState.VIRTUAL_LAB} icon={FlaskConical} label={t('common.knowledgeHub')} />
+                    <NavItem view={ViewState.VIRTUAL_LAB} icon={FlaskConical} label={t('common.virtualLab')} />
                     
                     <div className="text-xs font-bold text-slate-500 px-4 mb-2 mt-6 uppercase tracking-wider">Assessment</div>
                     <NavItem view={ViewState.EXAMS} icon={FileText} label={t('common.exams')} />
@@ -634,7 +634,7 @@ const App: React.FC = () => {
               <div className="p-1.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
                  <GraduationCap className="w-5 h-5 text-white" />
               </div>
-              <span className="font-bold">BRIGHT BD</span>
+              <span className="font-bold">Shikkhaverse</span>
            </div>
            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-slate-400">
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -814,7 +814,7 @@ const App: React.FC = () => {
                   </div>
                   <h2 className="text-2xl font-bold text-white mb-4">Emergency SOS</h2>
                   <p className="text-slate-400 mb-8">
-                    This will send your current location and an alert to your parents and BRIGHT BD emergency response. Are you sure?
+                    This will send your current location and an alert to your parents and Shikkhaverse emergency response. Are you sure?
                   </p>
                   <div className="flex gap-4">
                     <button 

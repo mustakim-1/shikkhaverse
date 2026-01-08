@@ -53,7 +53,9 @@ const INITIAL_POSTS: Post[] = [
 const INITIAL_ASSIGNMENTS: Assignment[] = [
     { id: 1, title: "Thermodynamics Lab Report", subject: "Physics", dueDate: "Tomorrow", status: 'PENDING' },
     { id: 2, title: "Calculus Problem Set 3", subject: "Math", dueDate: "in 2 days", status: 'PENDING' },
-    { id: 3, title: "Organic Chemistry Notes", subject: "Chemistry", dueDate: "Yesterday", status: 'SUBMITTED', grade: 'A' }
+    { id: 3, title: "Organic Chemistry Notes", subject: "Chemistry", dueDate: "Yesterday", status: 'SUBMITTED', grade: 'A' },
+    { id: 4, title: "English Essay: AI in Bangladesh", subject: "English", dueDate: "in 4 days", status: 'PENDING' },
+    { id: 5, title: "Biology: Plant Cell Diagram", subject: "Biology", dueDate: "Today", status: 'PENDING' }
 ];
 
 const INITIAL_CLUB_MESSAGES: ClubMessage[] = [
@@ -93,8 +95,111 @@ const INITIAL_ARTICLES: Article[] = [
   }
 ];
 
-const INITIAL_EXAMS: Exam[] = [];
-const INITIAL_CLASSES: PublishedClass[] = [];
+const INITIAL_EXAMS: Exam[] = [
+  {
+    id: 'ex-1',
+    title: 'HSC Physics: Thermodynamics MCQ',
+    subject: 'Physics',
+    durationMinutes: 30,
+    totalMarks: 25,
+    createdBy: 'ADMIN',
+    createdAt: new Date().toISOString(),
+    sections: [
+      {
+        type: 'MCQ',
+        mcq: [
+          {
+            id: 'q1',
+            question: 'Which law of thermodynamics defines the concept of temperature?',
+            options: ['Zeroth Law', 'First Law', 'Second Law', 'Third Law'],
+            correctAnswer: 0,
+            explanation: 'The Zeroth Law states that if two systems are in thermal equilibrium with a third system, they are in thermal equilibrium with each other.'
+          },
+          {
+            id: 'q2',
+            question: 'In an isothermal process, what remains constant?',
+            options: ['Pressure', 'Volume', 'Temperature', 'Entropy'],
+            correctAnswer: 2,
+            explanation: 'Isothermal means "constant temperature".'
+          },
+          {
+            id: 'q3',
+            question: 'The efficiency of a Carnot engine depends on:',
+            options: ['Nature of working substance', 'Temperature of source and sink', 'Volume of cylinder', 'Duration of cycle'],
+            correctAnswer: 1,
+            explanation: 'Efficiency = 1 - (T_low / T_high).'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'ex-2',
+    title: 'Mathematics: Differentiation Basics',
+    subject: 'Mathematics',
+    durationMinutes: 20,
+    totalMarks: 20,
+    createdBy: 'ADMIN',
+    createdAt: new Date().toISOString(),
+    sections: [
+      {
+        type: 'MCQ',
+        mcq: [
+          {
+            id: 'm1',
+            question: 'What is the derivative of sin(x)?',
+            options: ['cos(x)', '-cos(x)', 'tan(x)', 'sec(x)'],
+            correctAnswer: 0
+          },
+          {
+            id: 'm2',
+            question: 'The derivative of a constant is always:',
+            options: ['1', 'x', 'Infinity', '0'],
+            correctAnswer: 3
+          }
+        ]
+      }
+    ]
+  }
+];
+const INITIAL_CLASSES: PublishedClass[] = [
+  {
+    id: 1,
+    title: "Quantum Mechanics for Beginners",
+    instructor: "Dr. Ayesha Rahman",
+    videoUrl: "https://www.youtube.com/watch?v=7M7v6vPz_pA",
+    thumbnail: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=800&q=80",
+    subject: "Physics",
+    duration: "45 mins",
+    students: 1250,
+    rating: 4.9,
+    description: "An introduction to the fascinating world of quantum mechanics, covering wave-particle duality and the uncertainty principle."
+  },
+  {
+    id: 2,
+    title: "Advanced Calculus: Integration Techniques",
+    instructor: "Prof. Kamal Hossain",
+    videoUrl: "https://www.youtube.com/watch?v=d7Y_3W_S3oE",
+    thumbnail: "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=800&q=80",
+    subject: "Mathematics",
+    duration: "55 mins",
+    students: 840,
+    rating: 4.8,
+    description: "Master complex integration techniques including substitution, integration by parts, and partial fractions."
+  },
+  {
+    id: 3,
+    title: "Organic Chemistry: Carbon Compounds",
+    instructor: "Dr. Nusrat Jahan",
+    videoUrl: "https://www.youtube.com/watch?v=7G26_Y58uP8",
+    thumbnail: "https://images.unsplash.com/photo-1532187875605-2fe358511423?auto=format&fit=crop&w=800&q=80",
+    subject: "Chemistry",
+    duration: "50 mins",
+    students: 2100,
+    rating: 4.7,
+    description: "Explore the structure, properties, and reactions of organic compounds and functional groups."
+  }
+];
 const INITIAL_NOTIFICATIONS: AppNotification[] = [
   {
     id: '1',
@@ -295,6 +400,33 @@ export const dataService = {
   getCurrentUser: (): User | null => {
     const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
     return stored ? JSON.parse(stored) : null;
+  },
+
+  updateUserPoints: (pointsToAdd: number): User | null => {
+    const user = dataService.getCurrentUser();
+    if (!user) return null;
+    
+    const updatedUser = { ...user, points: (user.points || 0) + pointsToAdd };
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedUser));
+    
+    // Also update in the USERS list
+    const usersJson = localStorage.getItem(STORAGE_KEYS.USERS);
+    if (usersJson) {
+      const users: User[] = JSON.parse(usersJson);
+      const updatedUsers = users.map(u => u.id === user.id ? updatedUser : u);
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(updatedUsers));
+    }
+    
+    return updatedUser;
+  },
+
+  getLeaderboard: (): { name: string; points: number; rank: number }[] => {
+    const usersJson = localStorage.getItem(STORAGE_KEYS.USERS);
+    const users: User[] = usersJson ? JSON.parse(usersJson) : [];
+    return users
+      .sort((a, b) => (b.points || 0) - (a.points || 0))
+      .slice(0, 5)
+      .map((u, i) => ({ name: u.name, points: u.points || 0, rank: i + 1 }));
   },
 
   logout: () => {

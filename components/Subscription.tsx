@@ -15,20 +15,9 @@ export const Subscription: React.FC = () => {
         'Teacher Chat Support',
         'Weekly Model Tests',
         'Offline Downloads',
-        'Parent Dashboard Access'
-      ]
-    },
-    {
-      id: 'yearly',
-      name: 'Yearly Saver',
-      price: 1000,
-      duration: 'YEARLY',
-      features: [
-        'Everything in Monthly',
-        '2 Months Free',
-        'Exclusive Mentorship Session',
-        'Printed Certificate on Completion',
-        'Priority Doubt Solving'
+        'Parent Dashboard Access',
+        'AI Mentor Access',
+        'Personalized Learning Path'
       ]
     }
   ];
@@ -44,7 +33,7 @@ export const Subscription: React.FC = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+      <div className="grid grid-cols-1 max-w-md mx-auto">
         {plans.map((plan) => (
           <div key={plan.id} className="glass-panel p-8 rounded-3xl relative border-2 border-slate-700 hover:border-blue-500 transition-all group">
              {plan.duration === 'YEARLY' && (

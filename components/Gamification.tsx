@@ -6,8 +6,14 @@ import { dataService } from '../services/dataService';
 export const Gamification: React.FC = () => {
   const t = (key: string) => translationService.t(key);
   const [streak, setStreak] = useState(0);
+  const [leaderboard, setLeaderboard] = useState(dataService.getLeaderboard());
   const user = dataService.getCurrentUser();
   const [points, setPoints] = useState<number>(user?.points || 0);
+
+  useEffect(() => {
+    setLeaderboard(dataService.getLeaderboard());
+  }, [points]);
+
   useEffect(() => {
     const key = 'sv_streak';
     const stored = localStorage.getItem(key);
@@ -152,14 +158,39 @@ export const Gamification: React.FC = () => {
               <button
                 onClick={() => {
                   if (points >= item.cost) {
-                    setPoints(points - item.cost);
-                    dataService.addNotification({ type: 'ANNOUNCEMENT', title: 'Reward Redeemed', message: item.name, time: 'Now' });
+                    const newPoints = -item.cost;
+                    dataService.updateUserPoints(newPoints);
+                    setPoints(prev => prev - item.cost);
+                    dataService.addNotification({ type: 'ANNOUNCEMENT', title: 'Reward Redeemed', message: `You have redeemed: ${item.name}`, time: 'Now' });
                   }
                 }}
                 className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-2 ${points >= item.cost ? 'bg-yellow-500 text-slate-900 hover:bg-yellow-400' : 'bg-slate-700 text-slate-400 cursor-not-allowed'}`}
               >
                 <Gift className="w-4 h-4" /> Redeem
               </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Leaderboard Section */}
+      <div className="glass-panel p-6 rounded-2xl">
+        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+          <Trophy className="w-6 h-6 text-yellow-400" /> Top Scholars (Leaderboard)
+        </h3>
+        <div className="space-y-4">
+          {leaderboard.map((entry, idx) => (
+            <div key={idx} className={`flex items-center justify-between p-4 rounded-xl ${entry.name === user?.name ? 'bg-blue-600/20 border border-blue-500/50' : 'bg-slate-800/50 border border-slate-700'}`}>
+              <div className="flex items-center gap-4">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${idx === 0 ? 'bg-yellow-500 text-slate-900' : idx === 1 ? 'bg-slate-300 text-slate-900' : idx === 2 ? 'bg-orange-500 text-slate-900' : 'bg-slate-700 text-slate-400'}`}>
+                  {entry.rank}
+                </div>
+                <span className={`font-bold ${entry.name === user?.name ? 'text-blue-400' : 'text-slate-200'}`}>{entry.name} {entry.name === user?.name && '(You)'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-blue-400" />
+                <span className="font-bold text-white">{entry.points} XP</span>
+              </div>
             </div>
           ))}
         </div>

@@ -1,6 +1,6 @@
 import { User, UserRole } from '../types';
 
-const STORAGE_KEY = 'bright_bd_users';
+const STORAGE_KEY = 'brightbd_users';
 
 // Pre-seeded users for demonstration
 const DEFAULT_USERS: User[] = [

@@ -14,8 +14,14 @@ export const Classroom: React.FC = () => {
   const [selectedClass, setSelectedClass] = useState<PublishedClass | null>(null);
 
   useEffect(() => {
-    setAssignments(dataService.getAssignments());
-    setClasses(dataService.getClasses());
+    const fetchedAssignments = dataService.getAssignments();
+    const fetchedClasses = dataService.getClasses();
+    setAssignments(fetchedAssignments);
+    setClasses(fetchedClasses);
+    
+    if (fetchedClasses.length > 0 && !selectedClass) {
+      setSelectedClass(fetchedClasses[0]);
+    }
   }, []);
 
   const [isMicActive, setIsMicActive] = useState(false);
